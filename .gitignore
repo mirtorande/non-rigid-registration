@@ -32,3 +32,5 @@
 *.swp
 
 build/*
+!build/example.vcxproj
+!build/example.sln
