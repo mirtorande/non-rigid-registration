@@ -10,10 +10,9 @@
 #include <igl/iterative_closest_point.h>
 #include <igl/point_mesh_squared_distance.h>
 
-using namespace std;
 using namespace Eigen;
 
-const string MODEL_FILE_PATH = "../resources/";
+const std::string MODEL_FILE_PATH = "../resources/";
 
 RowVector3d closest_point_on_triangle(RowVector3d point, RowVector3d a, RowVector3d b, RowVector3d c);
 
@@ -167,7 +166,6 @@ int main(int argc, char* argv[])
 			{
 				RowVector3d point = RowVector3d::Zero(3);
 				RowVector3d closestPoint = find_closest_point_on_mesh(point, VX, FX);
-				cout << closestPoint << endl;
 				return true;
 				break;
 			}
