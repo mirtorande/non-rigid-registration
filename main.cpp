@@ -14,10 +14,6 @@ using namespace Eigen;
 
 const std::string MODEL_FILE_PATH = "../resources/";
 
-RowVector3d closest_point_on_triangle(RowVector3d point, RowVector3d a, RowVector3d b, RowVector3d c);
-
-RowVector3d find_closest_point_on_mesh(RowVector3d point, const MatrixXd& V, const MatrixXi& F);
-
 void select_n_random_points(int n, const MatrixXd& V, MatrixXd& VA);
 
 void initialize_icp_correspondences(
@@ -36,42 +32,33 @@ void ransac3(const MatrixXd& VX, const MatrixXd& VY, const MatrixXi& FY, const i
 
 int main(int argc, char* argv[])
 {
-	MatrixXd OVX, VX, VY;
-	MatrixXi FX, FY;
-	igl::readOBJ(MODEL_FILE_PATH + "rabbit.obj", VX, FX);
-	igl::readOBJ(MODEL_FILE_PATH + "rabbit.obj", VY, FY);
+	MatrixXd OVX, VA, VB;
+	MatrixXi FA, FB;
+	igl::readOBJ(MODEL_FILE_PATH + "rabbit.obj", VA, FA);
+	igl::readOBJ(MODEL_FILE_PATH + "rabbit-shard2.obj", VB, FB);
 
 	// Initialize viewer
 	igl::opengl::glfw::Viewer v;
 
-	const double bbd = (VY.colwise().maxCoeff() - VY.colwise().minCoeff()).norm();
-	{
-		// sprinkle a noise so that we can see z-fighting when the match is perfect.
-		const double h = igl::avg_edge_length(VY, FY);
-		OVX = VY + 1e-2 * h * MatrixXd::Random(VY.rows(), VY.cols());
-	}
-
-	VX = OVX;
-
-	igl::AABB<MatrixXd, 3> Ytree;
-	Ytree.init(VY, FY);
+	igl::AABB<MatrixXd, 3> treeB;
+	treeB.init(VB, FB);
 	MatrixXd NY;
-	igl::per_face_normals(VY, FY, NY);
+	igl::per_face_normals(VB, FB, NY);
 
 	const auto apply_random_rotation = [&]()
 		{
 			const Matrix3d R = AngleAxisd(
 				2. * igl::PI * (double)rand() / RAND_MAX * 0.3, igl::random_dir()).matrix();
 			const RowVector3d cen =
-				0.5 * (VY.colwise().maxCoeff() + VY.colwise().minCoeff());
-			VX = ((OVX * R).rowwise() + (cen - cen * R)).eval();
+				0.5 * (VB.colwise().maxCoeff() + VB.colwise().minCoeff());
+			VA = ((OVX * R).rowwise() + (cen - cen * R)).eval();
 		};
 
 	const auto apply_random_translation = [&]()
 		{
 			double translation_limit = 5.0;
-			const RowVector3d t = RowVector3d::Random(VY.cols()) / 10.0f;
-			VX = (VX.rowwise() + t).eval();
+			const RowVector3d t = RowVector3d::Random(VB.cols()) / 10.0f;
+			VA = (VA.rowwise() + t).eval();
 		};
 
 	const auto single_iteration = [&]()
@@ -82,10 +69,10 @@ int main(int argc, char* argv[])
 			Matrix3d R;
 			RowVector3d t;
 			//igl::iterative_closest_point(VX, FX, VY, FY, Ytree, NY, 1000, 1, R, t);
-			rigid_shape_matching(VX, VY, R, t);
-			VX = VX * R;
-			VX = (VX.rowwise() + t).eval();
-			v.data().set_mesh(VX, FX);
+			rigid_shape_matching(VA, VB, R, t);
+			VA = VA * R;
+			VA = (VA.rowwise() + t).eval();
+			v.data().set_mesh(VA, FA);
 			v.data().compute_normals();
 		};
 
@@ -113,7 +100,7 @@ int main(int argc, char* argv[])
 			{
 				// Random rigid transformation
 				apply_random_rotation();
-				v.data().set_mesh(VX, FX);
+				v.data().set_mesh(VA, FA);
 				v.data().compute_normals();
 				return true;
 				break;
@@ -123,7 +110,7 @@ int main(int argc, char* argv[])
 			{
 				// Random rigid transformation
 				apply_random_translation();
-				v.data().set_mesh(VX, FX);
+				v.data().set_mesh(VA, FA);
 				v.data().compute_normals();
 				return true;
 				break;
@@ -132,15 +119,17 @@ int main(int argc, char* argv[])
 			case 'y':
 			{
 				// Mesh surface based ICP step
-				MatrixXd VA;
-				MatrixXd VB;
-				initialize_icp_correspondences(VX, VY, FY, Ytree, VA, VB);
+				MatrixXd cloudA;
+				MatrixXd cloudB;
+				initialize_icp_correspondences(VA, VB, FB, treeB, cloudA, cloudB);
+				// Remove outliers
+
 				Matrix3d R;
 				RowVector3d t;
-				rigid_shape_matching(VA, VB, R, t);
-				VX = VX * R;
-				VX = (VX.rowwise() + t).eval();
-				v.data().set_mesh(VX, FX);
+				rigid_shape_matching(cloudA, cloudB, R, t);
+				VA = VA * R;
+				VA = (VA.rowwise() + t).eval();
+				v.data().set_mesh(VA, FA);
 				v.data().compute_normals();
 				return true;
 				break;
@@ -149,121 +138,26 @@ int main(int argc, char* argv[])
 			case 'g':
 			{
 				// Ransac step
-				MatrixXd VA;
-				MatrixXd VB;
 				Matrix3d R;
 				RowVector3d t;
-				ransac3(VX, VY, FY, Ytree, R, t);
-				VX = VX * R;
-				VX = (VX.rowwise() + t).eval();
-				v.data().set_mesh(VX, FX);
+				ransac3(VA, VB, FB, treeB, R, t);
+				VA = VA * R;
+				VA = (VA.rowwise() + t).eval();
+				v.data().set_mesh(VA, FA);
 				v.data().compute_normals();
 				return true;
 				break;
 			}
-			case 'A':
-			case 'a':
-			{
-				RowVector3d point = RowVector3d::Zero(3);
-				RowVector3d closestPoint = find_closest_point_on_mesh(point, VX, FX);
-				return true;
-				break;
 			}
-			return false;
-			};
 		};
 
-	v.data().set_mesh(VY, FY);
+	v.data().set_mesh(VB, FB);
 	v.data().set_colors(RowVector3d(1, 0, 1));
 	v.data().show_lines = false;
 	v.append_mesh();
-	v.data().set_mesh(VX, FX);
+	v.data().set_mesh(VA, FA);
 	v.data().show_lines = false;
 	v.launch();
-}
-
-RowVector3d closest_point_on_triangle(RowVector3d point, RowVector3d a, RowVector3d b, RowVector3d c) {
-	// Compute the edges of the triangle
-	RowVector3d e0 = b - a;
-	RowVector3d e1 = c - a;
-
-	// Calculate the normal vector of the triangle
-	RowVector3d n = e0.cross(e1);
-	n.normalize(); // Normalize it once
-
-	// Calculate the vector from 'a' to the query point
-	RowVector3d ap = point - a;
-
-	// Calculate the distance along the triangle normal
-	double t = ap.dot(n);
-
-	// Calculate the projected point on the plane
-	RowVector3d pointOnPlane = point - t * n;
-
-	// Check if the point is inside the triangle
-	RowVector3d v0 = b - a;
-	RowVector3d v1 = c - a;
-	RowVector3d v2 = pointOnPlane - a;
-
-	double dot00 = v0.dot(v0);
-	double dot01 = v0.dot(v1);
-	double dot02 = v0.dot(v2);
-	double dot11 = v1.dot(v1);
-	double dot12 = v1.dot(v2);
-
-	double denom = dot00 * dot11 - dot01 * dot01;
-	if (denom == 0.0) {
-		// Triangle degenerates into a line
-		return a; // Return 'a' as the closest point
-	}
-
-	double u = (dot11 * dot02 - dot01 * dot12) / denom;
-	double v = (dot00 * dot12 - dot01 * dot02) / denom;
-
-	if (u >= 0.0 && v >= 0.0 && u + v <= 1.0) {
-		return pointOnPlane; // The point is inside the triangle
-	}
-
-	// Find the closest point on each edge of the triangle
-	double minDistance = (pointOnPlane - a).norm();
-	RowVector3d closest = a;
-
-	double distance = (pointOnPlane - b).norm();
-	if (distance < minDistance) {
-		minDistance = distance;
-		closest = b;
-	}
-
-	distance = (pointOnPlane - c).norm();
-	if (distance < minDistance) {
-		closest = c;
-	}
-
-	return closest;
-}
-
-
-RowVector3d find_closest_point_on_mesh(RowVector3d point, const MatrixXd& V, const MatrixXi& F)
-{
-	double minDistance = 10e12;
-	RowVector3d closestPoint;
-
-	for (int triangleIndex = 0; triangleIndex < F.rows(); ++triangleIndex) {
-		// Extract the vertices of the triangle
-		RowVector3d v0 = V.row(F(triangleIndex, 0));
-		RowVector3d v1 = V.row(F(triangleIndex, 1));
-		RowVector3d v2 = V.row(F(triangleIndex, 2));
-
-		// Perform your operation on the vertices of the triangle
-		RowVector3d closestPointIteration = closest_point_on_triangle(point, v0, v1, v2);
-		double distance = (closestPointIteration - point).squaredNorm();
-
-		if (distance < minDistance) {
-			minDistance = distance;
-			closestPoint = closestPointIteration;
-		}
-	}
-	return closestPoint;
 }
 
 void select_n_random_points(int n, const MatrixXd& V, MatrixXd& VA)
@@ -310,19 +204,36 @@ void initialize_icp_correspondences(
 	MatrixXi closest_indexes;
 	MatrixXd closest_points;
 	Ytree.squared_distance(VY, FY, VA, squared_distances, closest_indexes, VB);
-	/*
-	// Create VB with corresponding values
-	VB.resize(numPoints, VX.cols());
-	for (int i = 0; i < numPoints; ++i) {
-		RowVector3d point(VA.row(i));
-		RowVector3d closestPoint = find_closest_point_on_mesh(point, VY, FY);
-		VB.row(i) = closestPoint;
-	}*/
+	// Calculate standard deviation of squared distances
+	double squared_distances_sum = squared_distances.sum();
+	double mean = squared_distances_sum / squared_distances.size();
+
+	// Remove outliers (points with squared distance greater than 2 standard deviations)
+	MatrixXd newVA;
+	MatrixXd newVB;
+	int newVA_size = 0;
+	for (int i = 0; i < squared_distances.size(); i++) {
+		if (squared_distances(i) < mean ) {
+			newVA_size++;
+		}
+	}
+	newVA.resize(newVA_size, VA.cols());
+	newVB.resize(newVA_size, VB.cols());
+	int j = 0;
+	for (int i = 0; i < squared_distances.size(); i++) {
+		if (squared_distances(i) < mean ) {
+			newVA.row(j) = VA.row(i);
+			newVB.row(j) = VB.row(i);
+			j++;
+		}
+	}
+	VA = newVA;
+	VB = newVB;
 }
 
 void rigid_shape_matching(MatrixXd VA, MatrixXd VB, Matrix3d& R, RowVector3d& t)
 {
-	assert(VA.rows() == VB.rows());
+	//assert(VA.rows() == VB.rows());
 	// Ricavo traslazione
 	// Calcolo baricentro
 	const RowVectorXd summerVector = RowVectorXd::Constant(VA.rows(), 1.0f / VA.rows());
