@@ -50,14 +50,14 @@ int main(int argc, char* argv[])
 			const Matrix3d R = AngleAxisd(
 				2. * igl::PI * (double)rand() / RAND_MAX * 0.3, igl::random_dir()).matrix();
 			const RowVector3d cen =
-				0.5 * (VB.colwise().maxCoeff() + VB.colwise().minCoeff());
-			VA = ((OVX * R).rowwise() + (cen - cen * R)).eval();
+				0.5 * (VA.colwise().maxCoeff() + VA.colwise().minCoeff());
+			VA = ((VA * R).rowwise() + (cen - cen * R)).eval();
 		};
 
 	const auto apply_random_translation = [&]()
 		{
 			double translation_limit = 5.0;
-			const RowVector3d t = RowVector3d::Random(VB.cols()) / 10.0f;
+			const RowVector3d t = RowVector3d::Random(VA.cols()) / 10.0f;
 			VA = (VA.rowwise() + t).eval();
 		};
 
