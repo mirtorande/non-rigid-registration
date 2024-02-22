@@ -9,21 +9,17 @@
 #include <igl/per_face_normals.h>
 #include <igl/iterative_closest_point.h>
 #include <igl/point_mesh_squared_distance.h>
+#include <igl/barycenter.h>
 
 using namespace Eigen;
 
 const std::string MODEL_FILE_PATH = "../resources/";
 
-struct Vertex {
-	int id; // Identificatore del vertice
-	double area; // Area duale del vertice
-	RowVector3d color; // Colore associato all'area del vertice
-
-	// Costruttore per inizializzare un vertice con l'id specificato e un'area predefinita
-	Vertex(int _id) : id(_id), area(1.0) {
-		// Genera un colore casuale per l'area del vertice
-		color << ((double)rand() / RAND_MAX), ((double)rand() / RAND_MAX), ((double)rand() / RAND_MAX);
-	}
+struct SubdivisionGraphLevel {
+	int num_nodes;
+	MatrixXi edges;
+	VectorXd area;
+	VectorXi parents;
 };
 
 void select_n_random_points(int n, const MatrixXd& V, MatrixXd& VA);
@@ -42,6 +38,12 @@ void rigid_shape_matching(
 void ransac3(const MatrixXd& VX, const MatrixXd& VY, const MatrixXi& FY, const igl::AABB<MatrixXd, 3> Ytree, Matrix3d& R, RowVector3d& t);
 
 void create_multiresolution_hierarchy(MatrixXd& vertices, MatrixXi& faces, MatrixXd& normals, MatrixXd& colors);
+
+void mesh_to_graph(const MatrixXd& V, const MatrixXi& F, SubdivisionGraphLevel& graph);
+
+void create_coarser_subdivision_level(SubdivisionGraphLevel& prevSubLvl, SubdivisionGraphLevel& thisSubLvl);
+
+void color_by_parent(const std::vector<SubdivisionGraphLevel>& levels, Eigen::MatrixXd& colors);
 
 // Funzione per trovare i vicini di ciascun vertice nella mesh
 MatrixXi find_vertex_neighbors(const MatrixXi& FB, int num_vertices) {
@@ -75,6 +77,33 @@ MatrixXi find_vertex_neighbors(const MatrixXi& FB, int num_vertices) {
 	return vertex_neighbors;
 }
 
+void computeAdjacentFaceAreas(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, Eigen::VectorXd& vertexAreas)
+{
+	// Inizializza l'array delle aree dei vertici a zero
+	vertexAreas.setZero(V.rows());
+
+	// Per ogni faccia
+	for (int i = 0; i < F.rows(); ++i)
+	{
+		// Calcola il baricentro della faccia
+		Eigen::RowVector3d barycenter;
+		igl::barycenter(V, F.row(i), barycenter);
+
+		// Per ogni vertice nella faccia
+		for (int j = 0; j < F.cols(); ++j)
+		{
+			int vertexIndex = F(i, j);
+			// Calcola l'area del triangolo formato dalla faccia e dal vertice
+			Eigen::RowVector3d v0 = V.row(F(i, (j + 1) % F.cols()));
+			Eigen::RowVector3d v1 = V.row(F(i, (j + 2) % F.cols()));
+			double area = 0.5 * (v0 - barycenter).cross(v1 - barycenter).norm();
+
+			// Aggiungi l'area alla somma delle aree dei vertici
+			vertexAreas(vertexIndex) += area;
+		}
+	}
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -96,8 +125,26 @@ int main(int argc, char* argv[])
 		colors.row(i) = Eigen::RowVector3d::Random().cwiseAbs();
 	}
 
-	// Create multiresolution hierarchy
-	create_multiresolution_hierarchy(VB, FB, NB, colors);
+	// Create SubdivisionGraphLevel
+	SubdivisionGraphLevel lod0;
+	mesh_to_graph(VB, FB, lod0);
+
+	// Create coarser subdivision level
+	SubdivisionGraphLevel lod1;
+	create_coarser_subdivision_level(lod0, lod1);
+
+	// Create coarser subdivision level
+	SubdivisionGraphLevel lod2;
+	create_coarser_subdivision_level(lod1, lod2);
+
+	// Make a vector of SubdivisionGraphLevel to store the levels
+	std::vector<SubdivisionGraphLevel> levels;
+	levels.emplace_back(lod0);
+	levels.emplace_back(lod1);
+	levels.emplace_back(lod2);
+
+	// Color the mesh by parent
+	color_by_parent(levels, colors);
 
 	const auto apply_random_rotation = [&]()
 		{
@@ -349,79 +396,170 @@ void ransac3(const MatrixXd& VX, const MatrixXd& VY, const MatrixXi& FY, const i
 	t = best_t;
 }
 
-// Funzione per creare la gerarchia a risoluzione multipla
-void create_multiresolution_hierarchy(MatrixXd& vertices, MatrixXi& faces, MatrixXd& normals, MatrixXd& colors) {
-	// Inizializza il generatore di numeri casuali con il tempo corrente
-	//srand(time(nullptr));
+void mesh_to_graph(const MatrixXd& V, const MatrixXi& F, SubdivisionGraphLevel& graph) {
+	// Inizializza la struttura dati del grafo
+	graph.num_nodes = V.rows();
+	std::cout << "Nodi contati:" << std::endl << graph.num_nodes << std::endl;
 
-	// Trova i vicini di ciascun vertice
-	MatrixXi vertex_neighbors = find_vertex_neighbors(faces, vertices.rows());
+	igl::edges(F, graph.edges);
 
-	// Stampa i vicini di ciascun vertice
-	for (int i = 0; i < vertices.rows(); ++i) {
-		std::cout << "Vertice " << i << " ha vicini: ";
-		for (int j = 0; j < vertex_neighbors.row(i).cols(); ++j) {
-			if (vertex_neighbors(i, j) != -1) {
-				std::cout << vertex_neighbors(i, j) << " ";
-			}
+	// Calcola l'area delle facce adiacenti a ciascun vertice e salva la somma in graph.area
+	graph.area = VectorXd::Zero(graph.num_nodes);
+	for (int i = 0; i < F.rows(); i++) {
+		for (int j = 0; j < 3; j++) {
+			graph.area(F(i, j)) += 1.0 / 3.0;
 		}
-		std::cout << std::endl;
 	}
 
-	// Variabile booleana per controllare se è stato effettuato almeno un collasso
-	bool collapsed = true;
+	computeAdjacentFaceAreas(V, F, graph.area);
 
-	// Ripeti finché un punto fisso non è raggiunto (nessun collasso è stato eseguito durante un'iterazione)
-	//while (collapsed) 
-	for (int i = 0; i < 1820; i++) {
-		collapsed = false; // Resetta il flag di collasso
+	// Stampiamo le aree
+	std::cout << "Aree calcolate:" << std::endl << graph.area << std::endl;
 
-		// Fase (a): calcola i punteggi per tutti i vertici vicini e ordina in ordine decrescente
-		//MatrixXd scores = compute_scores(vertices, normals, vertex_neighbors);
+	graph.parents = VectorXi::Zero(graph.num_nodes);
+
+	// Stampiamo gli edge
+	//std::cout << "Edge estratti:" << std::endl << graph.edges << std::endl;
+	//graph.parents = VectorXi::Zero(num_vertices);
+}
+
+bool containsRow(const Eigen::MatrixXi& matrix, const Eigen::RowVectorXi& row)
+{
+	for (int i = 0; i < matrix.rows(); ++i)
+	{
+		if (matrix.row(i) == row)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void create_coarser_subdivision_level(SubdivisionGraphLevel& prevSubLvl, SubdivisionGraphLevel& thisSubLvl) {
+	/// 1) Shuffle the edges randomly
+	MatrixXi edgesToProcess = prevSubLvl.edges;
+
+	srand(time(nullptr));
+	std::random_shuffle(edgesToProcess.data(), edgesToProcess.data() + edgesToProcess.size());
+
+	/// 2) Go tough the edges to process, if the nodes of edge do not have a parent, assign them a new parent
+	thisSubLvl.num_nodes = 0;
+	thisSubLvl.area = Eigen::VectorXd::Zero(0);
+
+	// Cycle through the edges
+	for (int i = 0; i < edgesToProcess.rows(); i++) {
+		int node1 = edgesToProcess(i, 0);
+		int node2 = edgesToProcess(i, 1);
+
+		// Print the nodes of the edge
+		//std::cout << "[" << i << "] Edge: " << node1 << " " << node2 << std::endl;
+		// If the nodes do not have a parent, assign them a new parent
+		if (prevSubLvl.parents(node1) == 0 && prevSubLvl.parents(node2) == 0) {
+				prevSubLvl.parents(node1) = thisSubLvl.num_nodes + 1;
+			prevSubLvl.parents(node2) = thisSubLvl.num_nodes + 1;
+			thisSubLvl.num_nodes++;
+		}
+
+	}
+	// If any node remains without a parent, assign it a new parent
+	for (int i = 0; i < prevSubLvl.num_nodes; i++) {
+		if (prevSubLvl.parents(i) == 0) {
+			prevSubLvl.parents(i) = thisSubLvl.num_nodes + 1;
+			thisSubLvl.num_nodes++;
+		}
+	}
+
+	// Print the maxium value of the parents
+	std::cout << "Max parent value: " << prevSubLvl.parents.maxCoeff() << std::endl;
+
+	std::cout << "Node calcolati:" << std::endl << thisSubLvl.num_nodes << std::endl;
+
+
+
+	// TODO : Is this the best way to initialize the parents?
+	thisSubLvl.parents = VectorXi::Zero(thisSubLvl.num_nodes+1);
+
+	/// 3) Go through the edges process again, if the nodes of the edge have different parents add an edge to the new graph, watch out for duplicates and symmetrical edges
+	thisSubLvl.edges = Eigen::MatrixXi::Zero(0, 2);
+
+	for (int i = 0; i < edgesToProcess.rows(); i++) {
+		int node1 = edgesToProcess(i, 0);
+		int node2 = edgesToProcess(i, 1);
 		
-		// Fase (a): calcola i punteggi per tutti i vertici vicini e ordina in ordine decrescente
-		// Assign a score to each vertex equal to the dot product of the normal of the vertex and the normal of the neighbor
-		MatrixXd scores = MatrixXd::Zero(vertices.rows(), 1);
-		for (int i = 0; i < vertices.rows(); ++i) {
-			for (int j = 0; j < vertex_neighbors.row(i).cols(); ++j) {
-				if (vertex_neighbors(i, j) != -1) {
-					// Calcola il punteggio come prodotto scalare tra la normale del vertice e la normale del vicino
-					scores(i) += igl::dot(normals.row(i).data(), normals.row(vertex_neighbors(i, j)).data());
-				}
-			}
+		// Order nodes in increasing order
+		if (node1 > node2) {
+			int temp = node1;
+			node1 = node2;
+			node2 = temp;
 		}
 
-		// Fase (b): esamina i punteggi e collassa i vertici se necessario
-		for (int i = 0; i < vertices.rows(); ++i) {
-			// Trova il vertice con il punteggio più basso tra i vicini
-			int min_neighbor = -1;
-			double min_score = std::numeric_limits<double>::max();
-			for (int j = 0; j < vertex_neighbors.row(i).cols(); ++j) {
-				if (vertex_neighbors(i, j) != -1 && scores(vertex_neighbors(i, j)) < min_score) {
-					min_neighbor = vertex_neighbors(i, j);
-					min_score = scores(vertex_neighbors(i, j));
-				}
+		// If the nodes have different parents, add an edge to the new graph
+		if (prevSubLvl.parents(node1) != prevSubLvl.parents(node2)) {
+			// Check if the edge is already present (the matrix has two columns and each edge is stored in a row)
+			Eigen::MatrixXi new_row(1, 2);
+			new_row << prevSubLvl.parents(node1), prevSubLvl.parents(node2);
+
+			if (!containsRow(thisSubLvl.edges, new_row)) {
+				// Add the edge to the new graph
+				thisSubLvl.edges.conservativeResize(thisSubLvl.edges.rows() + 1, Eigen::NoChange);
+				thisSubLvl.edges.row(thisSubLvl.edges.rows() - 1) = new_row;
 			}
 
-			// Se il punteggio del vertice corrente è inferiore a quello del vicino, collassa il vertice corrente
-			if (scores(i) < min_score) {
-				// Collassa il vertice corrente nel vicino con il punteggio più basso
-				vertices.row(min_neighbor) = (vertices.row(min_neighbor) + vertices.row(i)) / 2.0;
-				colors.row(min_neighbor) = (colors.row(min_neighbor) + colors.row(i)) / 2.0;
+		}
+	}
+	//std::cout << "Edge calcolati:" << std::endl << thisSubLvl.edges << std::endl;
+	for (int i = 0; i < edgesToProcess.rows(); i++) {
+		int node1 = edgesToProcess(i, 0);
+		int node2 = edgesToProcess(i, 1);
+		
+		// Order nodes in increasing order
+		if (node1 > node2) {
+			int temp = node1;
+			node1 = node2;
+			node2 = temp;
+		}
 
-				//assegna ai vertici collassati lo stesso colore casuale
-				colors.row(i) = colors.row(min_neighbor);
+		// If the nodes have different parents, add an edge to the new graph
+		if (prevSubLvl.parents(node1) != prevSubLvl.parents(node2)) {
+			// Check if the edge is already present (the matrix has two columns and each edge is stored in a row)
+			Eigen::MatrixXi new_row(1, 2);
+			new_row << prevSubLvl.parents(node1), prevSubLvl.parents(node2);
 
-				// Imposta il flag di collasso
-				collapsed = true;
+			if (!containsRow(thisSubLvl.edges, new_row)) {
+				// Add the edge to the new graph
+				thisSubLvl.edges.conservativeResize(thisSubLvl.edges.rows() + 1, Eigen::NoChange);
+				thisSubLvl.edges.row(thisSubLvl.edges.rows() - 1) = new_row;
 			}
+
+		}
+	}
+	//std::cout << "Edge calcolati:" << std::endl << thisSubLvl.edges << std::endl;
+	//print the maxium value of the first and second column of the edges
+	std::cout << "Max value of the first column of the edges: " << thisSubLvl.edges.col(0).maxCoeff() << std::endl;
+	std::cout << "Max value of the second column of the edges: " << thisSubLvl.edges.col(1).maxCoeff() << std::endl;
+}
+
+// Funzione che prende in input una serie di SubdivisionGraphLevel e una matrice di colori e restituisce una matrice di colori dove i vertici con gli stessi parent hanno lo stesso colore
+void color_by_parent(const std::vector<SubdivisionGraphLevel>& levels, Eigen::MatrixXd& colors) {
+
+	// Calcola i parent di ciascun vertice al livello più alto
+	VectorXi parents = VectorXi::Zero(levels[0].num_nodes);
+	for (int i = 0; i < levels.size() ; i++) {
+		for (int j = 0; j < levels[i].num_nodes; j++) {
+			parents(j) = levels[i].parents(j);
 		}
 	}
 
-	// Assegna i colori casuali alle aree delle mesh associate ai vertici nella gerarchia
-	colors.resize(vertices.rows(), 3);
-	for (int i = 0; i < vertices.rows(); ++i) {
-		// Genera un colore casuale per ogni area della mesh
-		colors.row(i) << ((double)rand() / RAND_MAX), ((double)rand() / RAND_MAX), ((double)rand() / RAND_MAX);
+	// Assegna un colore univoco a ciascun parent
+	std::map<int, Eigen::RowVectorXd> parent_colors;
+	for (int i = 0; i < parents.size(); i++) {
+		if (parent_colors.find(parents(i)) == parent_colors.end()) {
+			parent_colors[parents(i)] = Eigen::RowVectorXd::Random(3);
+		}
+	}
+
+	// Assegna i colori ai vertici
+	for (int i = 0; i < parents.size(); i++) {
+		colors.row(i) = parent_colors[parents(i)];
 	}
 }
