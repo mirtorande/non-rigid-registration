@@ -18,23 +18,31 @@ using namespace Eigen;
 const std::string MODEL_FILE_PATH = "../resources/";
 
 struct Edge {
-	const int a;
-	const int b;
+	int a;
+	int b;
 
 	Edge(int _a, int _b): a(std::min(_a, _b)), b(std::max(_a, _b)) {};
 	bool is_loop() const { return a == b; };
 	bool operator < (const Edge& o) const { return a < o.a || (a == o.a && b < o.b); };
+	Edge operator = (const Edge& o) { a = o.a; b = o.b; return *this; };
 };
 
 struct Graph {
 	int num_nodes = 0;
-	std::set<Edge> edges;
+	std::vector<Edge> edges;
 	//std::vector<float> area;
 	std::vector<int> parents;
 
 	Graph coarsen(); // Non-const because it populates parents vector
-	//void suffle_edges();
 };
+
+void shuffle_edges(std::vector<Edge>& edges) {
+	for (int i = 0; i < edges.size() * 10; i++) {
+		int a = rand() % edges.size();
+		int b = rand() % edges.size();
+		std::swap(edges[a], edges[b]);
+	}
+}
 
 Graph Graph::coarsen() {
 	Graph coarserGraph;
@@ -49,25 +57,41 @@ Graph Graph::coarsen() {
 
 	for (int& i : parents) if (i == -1) i = coarserGraph.num_nodes++;
 
+	std::set<Edge> uniqueEdges;
 	for (Edge e : edges) {
 		Edge ep(parents[e.a], parents[e.b]);
-		if (ep.is_loop()) coarserGraph.edges.insert(ep);
+		if (!ep.is_loop()) uniqueEdges.insert(ep);
 	}
-
+	coarserGraph.edges = std::vector<Edge>(uniqueEdges.begin(), uniqueEdges.end());
+	shuffle_edges(coarserGraph.edges);
 	return coarserGraph;
 }
 
-void mesh_to_graph(const MatrixXd& V, const MatrixXi& F, Graph& graph);
+void mesh_to_graph(const MatrixXd& V, const MatrixXi& F, Graph& graph) {
+	graph.num_nodes = V.rows();
+
+	std::set<Edge> uniqueEdges;
+	for (int i = 0; i < F.rows(); i++) {
+		uniqueEdges.insert(Edge(F(i, 0), F(i, 1)));
+		uniqueEdges.insert(Edge(F(i, 1), F(i, 2)));
+		uniqueEdges.insert(Edge(F(i, 2), F(i, 0)));
+	}
+	graph.edges = std::vector<Edge>(uniqueEdges.begin(), uniqueEdges.end());
+}
 
 struct GraphLOD {
 	std::vector<Graph> lod;
 
-	GraphLOD(const MatrixXd& V, const MatrixXi& F, int depth) { from_mesh(V, F, depth); };
+	GraphLOD(const MatrixXd& V, const MatrixXi& F) { from_mesh(V, F); };
 
-	void from_mesh(const MatrixXd& V, const MatrixXi& F, int depth) {
-		lod.resize(depth);
+	void from_mesh(const MatrixXd& V, const MatrixXi& F) {
+		lod.resize(1);
 		mesh_to_graph(V, F, lod[0]);
-		for (int i = 1; i < depth; i++) lod[i] = lod[i-1].coarsen();
+		while (lod.back().num_nodes > 1) {
+			lod.push_back(lod.back().coarsen());
+			// print number of nodes for each level
+			std::cout << lod.back().num_nodes << std::endl;
+		}
 	}
 
 	int ith_parent(int node, int i);
@@ -188,11 +212,13 @@ int main(int argc, char* argv[])
 
 
 	// Create SubdivisionGraphLevel
-	GraphLOD m_res(VB, FB, 5);
+	GraphLOD m_res(VB, FB);
 
 	Eigen::MatrixXd colors(VB.rows(), 3);
+
+	int lodDepth = m_res.lod.size() - 3;
 	for (int i = 0; i < VB.rows(); i++) {
-		colors.row(i) = ith_arbitrary_color(m_res.ith_parent(i, 4));
+		colors.row(i) = ith_arbitrary_color(m_res.ith_parent(i, lodDepth));
 	}
 
 	const auto apply_random_rotation = [&]()
@@ -297,11 +323,7 @@ int main(int argc, char* argv[])
 
 	v.data().set_mesh(VB, FB);
 	v.data().set_colors(colors);
-	//v.data().set_colors(RowVector3d(1, 0, 1));
 	v.data().show_lines = false;
-	//v.append_mesh();
-	//v.data().set_mesh(VA, FA);
-	//v.data().show_lines = false;
 	v.launch();
 }
 
@@ -443,17 +465,6 @@ void ransac3(const MatrixXd& VX, const MatrixXd& VY, const MatrixXi& FY, const i
 	}
 	R = best_R;
 	t = best_t;
-}
-
-void mesh_to_graph(const MatrixXd& V, const MatrixXi& F, Graph& graph) {
-	graph.num_nodes = V.rows();
-
-	graph.edges.clear();
-	for (int i = 0; i < F.rows(); i++) {
-		graph.edges.insert( Edge(F(i,0),F(i,1)) );
-		graph.edges.insert( Edge(F(i,1),F(i,2)) );
-		graph.edges.insert( Edge(F(i,2),F(i,0)) );
-	}
 }
 
 bool contains_row(const Eigen::MatrixXi& matrix, const Eigen::RowVectorXi& row)
