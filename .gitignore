@@ -31,6 +31,8 @@
 *.swo
 *.swp
 
+*.sqlite
+
 build/*
 !build/example.vcxproj
 !build/example.sln

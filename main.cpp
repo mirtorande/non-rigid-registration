@@ -221,10 +221,8 @@ int main(int argc, char* argv[])
 
 	Eigen::MatrixXd colors(VB.rows(), 3);
 
-	int lodDepth = m_res.lod.size() - 3;
-	for (int i = 0; i < VB.rows(); i++) {
-		colors.row(i) = ith_arbitrary_color(m_res.ith_parent(i, lodDepth));
-	}
+	int lodMaxDepth = m_res.lod.size() - 1;
+	int lodDepth = 1;
 
 	const auto apply_random_rotation = [&]()
 		{
@@ -266,7 +264,7 @@ int main(int argc, char* argv[])
 
 			return false;
 		};
-	v.callback_pre_draw = [&](igl::opengl::glfw::Viewer&)->bool
+	v.callback_pre_draw = [&](igl::opengl::glfw::Viewer& v)->bool
 		{
 			// Start ImGui frame
 			ImGui_ImplOpenGL3_NewFrame();
@@ -275,8 +273,17 @@ int main(int argc, char* argv[])
 
 			// Create ImGui window
 			ImGui::Begin("My ImGui Window");
-			ImGui::Text("Hello, world!");
+
+			ImGui::SliderInt("LOD Level", &lodDepth, 1, lodMaxDepth);
+
+			ImGui::Text("Slider Value: %d", lodDepth);
 			ImGui::End();
+
+			for (int i = 0; i < VB.rows(); i++) {
+				colors.row(i) = ith_arbitrary_color(m_res.ith_parent(i, lodDepth));
+			}
+
+			v.data().set_colors(colors);
 
 			return false;
 		};
@@ -351,7 +358,6 @@ int main(int argc, char* argv[])
 		};
 
 	v.data().set_mesh(VB, FB);
-	v.data().set_colors(colors);
 	v.data().show_lines = false;
 	v.launch();
 
