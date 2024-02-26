@@ -10,6 +10,10 @@
 #include <igl/iterative_closest_point.h>
 #include <igl/point_mesh_squared_distance.h>
 #include <igl/barycenter.h>
+// include imgui libraries
+#include <imgui.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
 
 #include <algorithm>
 
@@ -120,6 +124,7 @@ void rigid_shape_matching(
 	MatrixXd VB,	// Mesh B
 	Matrix3d& R, RowVector3d& t	// Result
 );
+
 
 void ransac3(const MatrixXd& VX, const MatrixXd& VY, const MatrixXi& FY, const igl::AABB<MatrixXd, 3> Ytree, Matrix3d& R, RowVector3d& t);
 
@@ -252,12 +257,36 @@ int main(int argc, char* argv[])
 			v.data().compute_normals();
 		};
 
+	v.callback_init = [&](igl::opengl::glfw::Viewer& viewer)->bool
+		{
+			// Initialize ImGui
+			ImGui::CreateContext();
+			ImGui_ImplGlfw_InitForOpenGL(viewer.window, true);
+			ImGui_ImplOpenGL3_Init("#version 150");
+
+			return false;
+		};
 	v.callback_pre_draw = [&](igl::opengl::glfw::Viewer&)->bool
 		{
-			if (v.core().is_animating)
-			{
-				single_iteration();
-			}
+			// Start ImGui frame
+			ImGui_ImplOpenGL3_NewFrame();
+			ImGui_ImplGlfw_NewFrame();
+			ImGui::NewFrame();
+
+			// Create ImGui window
+			ImGui::Begin("My ImGui Window");
+			ImGui::Text("Hello, world!");
+			ImGui::End();
+
+			return false;
+		};
+
+	v.callback_post_draw = [&](igl::opengl::glfw::Viewer&)->bool
+		{
+			// Render ImGui
+			ImGui::Render();
+			ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
 			return false;
 		};
 	v.callback_key_pressed =
@@ -325,6 +354,11 @@ int main(int argc, char* argv[])
 	v.data().set_colors(colors);
 	v.data().show_lines = false;
 	v.launch();
+
+	// Cleanup
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
 }
 
 void select_n_random_points(int n, const MatrixXd& V, MatrixXd& VA)
