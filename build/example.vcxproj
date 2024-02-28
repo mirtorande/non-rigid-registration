@@ -86,7 +86,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;$(ProjectDir)_deps\imgui-1.90.4;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/mirto/Desktop/non-rigid-registration/build/_deps/eigen-src" /bigobj</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -131,7 +131,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;$(ProjectDir)_deps\imgui-1.90.4;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/mirto/Desktop/non-rigid-registration/build/_deps/eigen-src" /bigobj</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <ExceptionHandling>Sync</ExceptionHandling>
@@ -176,7 +176,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;$(ProjectDir)_deps\imgui-1.90.4;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/mirto/Desktop/non-rigid-registration/build/_deps/eigen-src" /bigobj</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <ExceptionHandling>Sync</ExceptionHandling>
@@ -221,7 +221,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;$(ProjectDir)_deps\imgui-1.90.4;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/mirto/Desktop/non-rigid-registration/build/_deps/eigen-src" /bigobj</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -322,6 +322,13 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="C:\Users\mirto\Desktop\non-rigid-registration\main.cpp" />
+    <ClCompile Include="_deps\imgui-1.90.4\backends\imgui_impl_glfw.cpp" />
+    <ClCompile Include="_deps\imgui-1.90.4\backends\imgui_impl_opengl3.cpp" />
+    <ClCompile Include="_deps\imgui-1.90.4\imgui.cpp" />
+    <ClCompile Include="_deps\imgui-1.90.4\imgui_demo.cpp" />
+    <ClCompile Include="_deps\imgui-1.90.4\imgui_draw.cpp" />
+    <ClCompile Include="_deps\imgui-1.90.4\imgui_tables.cpp" />
+    <ClCompile Include="_deps\imgui-1.90.4\imgui_widgets.cpp" />
     <Natvis Include="C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\eigen-src\debug\msvc\eigen.natvis">
     </Natvis>
   </ItemGroup>
@@ -358,6 +365,16 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="_deps\imgui-1.90.4\backends\imgui_impl_glfw.h" />
+    <ClInclude Include="_deps\imgui-1.90.4\backends\imgui_impl_opengl3.h" />
+    <ClInclude Include="_deps\imgui-1.90.4\imconfig.h" />
+    <ClInclude Include="_deps\imgui-1.90.4\imgui.h" />
+    <ClInclude Include="_deps\imgui-1.90.4\imgui_internal.h" />
+    <ClInclude Include="_deps\imgui-1.90.4\imstb_rectpack.h" />
+    <ClInclude Include="_deps\imgui-1.90.4\imstb_textedit.h" />
+    <ClInclude Include="_deps\imgui-1.90.4\imstb_truetype.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

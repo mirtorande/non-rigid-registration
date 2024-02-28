@@ -518,30 +518,3 @@ bool contains_row(const Eigen::MatrixXi& matrix, const Eigen::RowVectorXi& row)
 	}
 	return false;
 }
-
-
-/*
-// Funzione che prende in input una serie di SubdivisionGraphLevel e una matrice di colori e restituisce una matrice di colori dove i vertici con gli stessi parent hanno lo stesso colore
-void color_by_parent(const std::vector<Graph>& levels, Eigen::MatrixXd& colors) {
-
-	// Calcola i parent di ciascun vertice al livello più alto
-	VectorXi parents = VectorXi::Zero(levels[0].num_nodes);
-	for (int i = 0; i < levels.size() ; i++) {
-		for (int j = 0; j < levels[i].num_nodes; j++) {
-			parents(j) = levels[i].parents(j);
-		}
-	}
-
-	// Assegna un colore univoco a ciascun parent
-	std::map<int, Eigen::RowVectorXd> parent_colors;
-	for (int i = 0; i < parents.size(); i++) {
-		if (parent_colors.find(parents(i)) == parent_colors.end()) {
-			parent_colors[parents(i)] = Eigen::RowVectorXd::Random(3);
-		}
-	}
-
-	// Assegna i colori ai vertici
-	for (int i = 0; i < parents.size(); i++) {
-		colors.row(i) = parent_colors[parents(i)];
-	}
-}*/
