@@ -66,7 +66,7 @@ Graph Graph::coarsen() {
 	std::vector<EdgeCollapse> pEdges;
 	
 	for (auto& e : edges) {
-		float priority = (area[e.first.a] + area[e.first.b]) / e.second;
+		float priority = (area[e.first.a] + area[e.first.b]) / (e.second * e.second);
 		pEdges.push_back({ e.first, priority });
 	}
 
@@ -290,6 +290,7 @@ void make_triangle_soup(const MatrixXd& VB, const MatrixXi& FB, const MatrixXd& 
 
 int main(int argc, char* argv[])
 {
+
 	srand(time(nullptr));
 
 	MatrixXd VA, VB;
@@ -299,11 +300,12 @@ int main(int argc, char* argv[])
 
 	// Initialize viewer
 	igl::opengl::glfw::Viewer v;
+	v.data().set_face_based(true);
 
 	igl::AABB<MatrixXd, 3> treeB;
 	treeB.init(VB, FB);
-	MatrixXd NB;
-	igl::per_face_normals(VB, FB, NB);
+	//MatrixXd NB;
+	//igl::per_face_normals(VB, FB, NB);
 
 
 	// Create SubdivisionGraphLevel
@@ -315,19 +317,13 @@ int main(int argc, char* argv[])
 	int lodMaxDepth = m_res.lod.size() - 1;
 	int lodDepth = 1;
 
-	MatrixXd TriangleSoup;
-	MatrixXi TriangleSoupIndices;
 
 	Eigen::MatrixXd faceColors(FB.rows(), 3);
-	Eigen::MatrixXd vertColors(FB.rows() * 3, 3);
 
 	for (int i = 0; i < FB.rows(); i++) {
 		faceColors.row(i) = ith_arbitrary_color(m_res.ith_parent(i, lodDepth));
 	}
-
-	make_triangle_soup(VB, FB, faceColors, TriangleSoup, TriangleSoupIndices, vertColors);
-	igl::writeOBJ("C:/Users/mirto/Desktop/output.obj", TriangleSoup, TriangleSoupIndices);
-
+	v.data().set_colors(faceColors);
 
 	const auto apply_random_rotation = [&]()
 		{
@@ -387,11 +383,9 @@ int main(int argc, char* argv[])
 			for (int i = 0; i < FB.rows(); i++) {
 				faceColors.row(i) = ith_arbitrary_color(m_res.ith_parent(i, lodDepth));
 			}
-
-			make_triangle_soup(VB, FB, faceColors, TriangleSoup, TriangleSoupIndices, vertColors);
-
-			v.data().set_colors(vertColors);
-
+			
+			//v.data().F_material_diffuse = faceColors;
+			v.data().set_colors(faceColors);
 			return false;
 		};
 
@@ -466,8 +460,9 @@ int main(int argc, char* argv[])
 			}
 		};
 
-	v.data().set_mesh(TriangleSoup, TriangleSoupIndices);
+	v.data().set_mesh(VB, FB);
 //	v.data().show_lines = false;
+	
 	v.core().lighting_factor = 0;
 	v.launch();
 
