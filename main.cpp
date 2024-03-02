@@ -14,189 +14,12 @@
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
-
 #include <algorithm>
-#include <map>
+#include "graph.h"
 
 using namespace Eigen;
 
 const std::string MODEL_FILE_PATH = "../resources/";
-
-struct Edge {
-	int a;
-	int b;
-
-	Edge(int _a, int _b): a(std::min(_a, _b)), b(std::max(_a, _b)) {};
-	bool is_loop() const { return a == b; };
-	bool operator < (const Edge& o) const { return a < o.a || (a == o.a && b < o.b); };
-	Edge operator = (const Edge& o) { a = o.a; b = o.b; return *this; };
-	bool operator == (const Edge& o) const { return a == o.a && b == o.b; };
-};
-
-
-struct Graph {
-	int num_nodes = 0;
-	std::map<Edge, float> edges; // Edge and confine length
-	std::vector<float> area;
-	std::vector<int> parents;
-
-	Graph coarsen(); // Non-const because it populates parents vector
-};
-
-template <class T>
-void shuffle(std::vector<T>& v) {
-	for (int i = 0; i < v.size() * 10; i++) {
-		int a = rand() % v.size();
-		int b = rand() % v.size();
-		std::swap(v[a], v[b]);
-	}
-}
-
-Graph Graph::coarsen() {
-	Graph coarserGraph;
-
-	// Sort edges giving priority to the ones connecting nodes with the smallest area on the edge with the longest length
-	struct EdgeCollapse {
-		Edge edge;
-		float priority;
-
-		bool operator < (const EdgeCollapse& o) const { return priority < o.priority; };
-	};
-	
-	std::vector<EdgeCollapse> pEdges;
-	
-	for (auto& e : edges) {
-		float priority = (area[e.first.a] + area[e.first.b]) / (e.second * e.second);
-		pEdges.push_back({ e.first, priority });
-	}
-
-	//shuffle(pEdges);
-	std::sort(pEdges.begin(), pEdges.end());
-
-	parents.resize(num_nodes, -1);
-
-	for (EdgeCollapse pe : pEdges) {
-		Edge e = pe.edge;
-		if (parents[e.a] == -1 && parents[e.b] == -1)
-			parents[e.a] = parents[e.b] = coarserGraph.num_nodes++;
-	}
-
-	for (int& i : parents) if (i == -1) i = coarserGraph.num_nodes++;
-
-
-	for (const auto& pair : edges) {
-		Edge e(parents[pair.first.a], parents[pair.first.b]);
-		if (e.is_loop()) continue;
-		
-		coarserGraph.edges[e] = coarserGraph.edges[e] + pair.second;
-	}
-	
-	coarserGraph.area.resize(coarserGraph.num_nodes, 0);
-	for (int i = 0; i < num_nodes; i++) {
-		coarserGraph.area[parents[i]] += area[i];
-	}
-
-	return coarserGraph;
-}
-
-/* NEEDS TO BE FIXED
-
-void mesh_ed_to_graph(const MatrixXd& V, const MatrixXi& F, Graph& graph) {
-	graph.num_nodes = V.rows();
-
-	std::set<Edge> uniqueEdges;
-	for (int i = 0; i < F.rows(); i++) {
-		uniqueEdges.insert(Edge(F(i, 0), F(i, 1)));
-		uniqueEdges.insert(Edge(F(i, 1), F(i, 2)));
-		uniqueEdges.insert(Edge(F(i, 2), F(i, 0)));
-	}
-	graph.edges = std::vector<Edge>(uniqueEdges.begin(), uniqueEdges.end());
-}*/
-
-void mesh_to_graph(const MatrixXd& V, const MatrixXi& F, Graph& graph) {
-	graph.num_nodes = F.rows();
-
-	std::map<Edge, int> edgeToFace;
-
-	for (int i = 0; i < F.rows(); i++) {
-		for (int j = 0; j < 3; ++j) {
-			Edge e(F(i, j), F(i, (j + 1) % 3)); // Cycling through the vertices of the triangle
-			if (edgeToFace.find(e) == edgeToFace.end()) edgeToFace[e] = i;
-			else {
-					Edge ep(edgeToFace[e], i);
-					Vector3d v0 = V.row(F(i, j));
-					Vector3d v1 = V.row(F(i, (j + 1) % 3));
-					float len = (v1 - v0).norm();
-					graph.edges[ep] = len;
-			}
-		}
-	}
-
-	// Compute face areas
-	graph.area.resize(F.rows());
-	for (int i = 0; i < F.rows(); i++) {
-		Vector3d v0 = V.row(F(i, 0));
-		Vector3d v1 = V.row(F(i, 1));
-		Vector3d v2 = V.row(F(i, 2));
-		Vector3d n = (v1 - v0).cross(v2 - v0);
-		graph.area[i] = n.norm() / 2;
-	}
-
-	// Print the number of edges, the edges with their length and the area of each face
-	std::cout << "Number of edges: " << graph.edges.size() << std::endl;
-	std::cout << "Number of edges: " << graph.num_nodes << std::endl;
-}
-
-struct GraphLOD {
-	std::vector<Graph> lod;
-
-	GraphLOD(const MatrixXd& V, const MatrixXi& F) { from_mesh(V, F); };
-
-	void from_mesh(const MatrixXd& V, const MatrixXi& F) {
-		lod.resize(1);
-		mesh_to_graph(V, F, lod[0]);
-		while (lod.back().num_nodes > 1) {
-			lod.push_back(lod.back().coarsen());
-			// print number of nodes for each level
-			//std::cout << lod.back().num_nodes << std::endl;
-		}
-	}
-
-	int ith_parent(int node, int i);
-
-	void printf() const {
-		for (int i = 0; i < lod.size(); i++) {
-			std::cout << "Level " << i << " has " << lod[i].num_nodes << " nodes" << std::endl;
-		}
-	}
-};
-
-int GraphLOD::ith_parent(int node, int i) {
-	/*
-		0: self
-		1: parent
-		2: grand-parent
-	*/
-	int ancestor = node;
-	for (int d = 0; d < i; d++) ancestor = lod[d].parents[ancestor];
-	return ancestor;
-}
-
-void select_n_random_points(int n, const MatrixXd& V, MatrixXd& VA);
-
-void initialize_icp_correspondences(
-	const MatrixXd& VX,
-	const MatrixXd& VY, const MatrixXi& FY, const igl::AABB<MatrixXd, 3> Ytree,
-	MatrixXd& VA, MatrixXd& VB);
-
-void rigid_shape_matching(
-	MatrixXd VA,	// Mesh A
-	MatrixXd VB,	// Mesh B
-	Matrix3d& R, RowVector3d& t	// Result
-);
-
-
-void ransac3(const MatrixXd& VX, const MatrixXd& VY, const MatrixXi& FY, const igl::AABB<MatrixXd, 3> Ytree, Matrix3d& R, RowVector3d& t);
 
 // Funzione per trovare i vicini di ciascun vertice nella mesh
 MatrixXi find_vertex_neighbors(const MatrixXi& FB, int num_vertices) {
@@ -257,40 +80,162 @@ void computeAdjacentFaceAreas(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F
 	}
 }
 
-double rand_0_to_1() {
-	return (double)rand() / RAND_MAX;
-}
+void select_n_random_points(int n, const MatrixXd& V, MatrixXd& VA)
+{
+	// Seed the random number generator
+	srand(static_cast<unsigned>(time(0)));
 
-Vector3d ith_arbitrary_color(int i) {
-	srand(i);
+	// Get the total number of rows in VX
+	const int totalRows = V.rows();
 
-	return Vector3d(rand_0_to_1(), rand_0_to_1(), rand_0_to_1());
-}
+	// Ensure numPoints does not exceed the total number of rows
+	if (n > totalRows) {
+		n = totalRows;
+	}
 
-void make_triangle_soup(const MatrixXd& VB, const MatrixXi& FB, const MatrixXd& faceColors, MatrixXd& TriangleSoup, MatrixXi& TriangleSoupIndices, MatrixXd& vertColors) {
-	TriangleSoup.resize(FB.rows() * 3, 3);
-	TriangleSoupIndices.resize(FB.rows() * 3, 3);
-	vertColors.resize(FB.rows() * 3, faceColors.cols()); // Resize vertColors appropriately
+	// Randomly select numPoints row indices
+	VectorXi selectedRows(n); // Initialize and resize selectedRows
+	for (int i = 0; i < n; ++i) {
+		selectedRows(i) = rand() % totalRows;
+	}
 
-	for (int i = 0; i < FB.rows(); i++) {
-		// Ensure that indices are within bounds
-		if (FB(i, 0) < VB.rows() && FB(i, 1) < VB.rows() && FB(i, 2) < VB.rows()) {
-			TriangleSoup.row(i * 3) = VB.row(FB(i, 0));
-			TriangleSoup.row(i * 3 + 1) = VB.row(FB(i, 1));
-			TriangleSoup.row(i * 3 + 2) = VB.row(FB(i, 2));
-
-			vertColors.row(i * 3) = vertColors.row(i * 3 + 1) = vertColors.row(i * 3 + 2) = faceColors.row(i);
-
-			// Assign original face indices
-			TriangleSoupIndices.row(i * 3) = TriangleSoupIndices.row(i * 3 + 1) = TriangleSoupIndices.row(i * 3 + 2) = Vector3i(i*3, i*3+1, i*3+2);
-		}
+	// Create VA with selected rows
+	VA.resize(n, V.cols());
+	for (int i = 0; i < n; ++i) {
+		VA.row(i) = V.row(selectedRows(i));
 	}
 }
+
+void initialize_icp_correspondences(
+	const MatrixXd& VX,
+	const MatrixXd& VY, const MatrixXi& FY, const igl::AABB<MatrixXd, 3> Ytree,
+	MatrixXd& VA, MatrixXd& VB)
+{
+	int numPoints = 100;
+	const int totalRows = VX.rows();
+
+	if (numPoints > totalRows) {
+		numPoints = totalRows;
+	}
+
+	select_n_random_points(numPoints, VX, VA);
+
+	MatrixXd squared_distances;
+	MatrixXi closest_indexes;
+	MatrixXd closest_points;
+	Ytree.squared_distance(VY, FY, VA, squared_distances, closest_indexes, VB);
+	// Calculate standard deviation of squared distances
+	double squared_distances_sum = squared_distances.sum();
+	double mean = squared_distances_sum / squared_distances.size();
+
+	// Remove outliers (points with squared distance greater than 2 standard deviations)
+	MatrixXd newVA;
+	MatrixXd newVB;
+	int newVA_size = 0;
+	for (int i = 0; i < squared_distances.size(); i++) {
+		if (squared_distances(i) < mean) {
+			newVA_size++;
+		}
+	}
+	newVA.resize(newVA_size, VA.cols());
+	newVB.resize(newVA_size, VB.cols());
+	int j = 0;
+	for (int i = 0; i < squared_distances.size(); i++) {
+		if (squared_distances(i) < mean) {
+			newVA.row(j) = VA.row(i);
+			newVB.row(j) = VB.row(i);
+			j++;
+		}
+	}
+	VA = newVA;
+	VB = newVB;
+}
+
+void rigid_shape_matching(MatrixXd VA, MatrixXd VB, Matrix3d& R, RowVector3d& t)
+{
+	//assert(VA.rows() == VB.rows());
+	// Ricavo traslazione
+	// Calcolo baricentro
+	const RowVectorXd summerVector = RowVectorXd::Constant(VA.rows(), 1.0f / VA.rows());
+	RowVectorXd bariA = summerVector * VA;
+	RowVectorXd bariB = summerVector * VB;
+	// Rotazione: Matrice di somme di esterni tra punti iniziali e punti finali
+	Matrix3d outerProduct = (VA.rowwise() - bariA).eval().transpose() * (VB.rowwise() - bariB).eval();
+
+	Matrix3d U, D;
+	Vector3d S;
+	igl::svd3x3(outerProduct, U, S, D);
+	R = U * D.transpose();
+	//cout << "U*S*D\n" << U * S.asDiagonal() * D.transpose() << endl;
+
+	t = bariB - bariA * R;
+}
+
+void ransac3(const MatrixXd& VX, const MatrixXd& VY, const MatrixXi& FY, const igl::AABB<MatrixXd, 3> Ytree, Matrix3d& R, RowVector3d& t)
+{
+	int max_iterations = 100;
+	int accept_threshold = 100;
+	double delta = 0.01f;
+	int largest_consensus = 0;
+	Matrix3d best_R;
+	RowVector3d best_t;
+
+	for (int i = 0; i < max_iterations; i++)
+	{
+		// Select triplets
+		MatrixXd tri_x, tri_y;
+		select_n_random_points(3, VX, tri_x);
+		select_n_random_points(3, VY, tri_y);
+
+		// Try matching
+		rigid_shape_matching(tri_x, tri_y, R, t);
+
+		// Apply transformation
+		MatrixXd ransacdVX = VX * R;
+		ransacdVX = (ransacdVX.rowwise() + t).eval();
+
+		// Calculate number of valid points
+
+		MatrixXd squared_distances;
+		MatrixXi closest_indexes;
+		MatrixXd closest_points;
+		Ytree.squared_distance(VY, FY, ransacdVX, squared_distances, closest_indexes, closest_points);
+
+		//igl::point_mesh_squared_distance(ransacdVX, VY, FY, squared_distances, closest_indexes, closest_points);
+
+		int valid_candidates = (squared_distances.array() < delta).count();
+
+		// If over threshold, accept
+		if (valid_candidates > accept_threshold)
+			return;
+
+		// if best result, save
+		if (valid_candidates > largest_consensus)
+		{
+			best_R = R;
+			best_t = t;
+		}
+	}
+	R = best_R;
+	t = best_t;
+}
+
+bool contains_row(const Eigen::MatrixXi& matrix, const Eigen::RowVectorXi& row)
+{
+	for (int i = 0; i < matrix.rows(); ++i)
+	{
+		if (matrix.row(i) == row)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 
 
 int main(int argc, char* argv[])
 {
-
 	srand(time(nullptr));
 
 	MatrixXd VA, VB;
@@ -461,8 +406,12 @@ int main(int argc, char* argv[])
 		};
 
 	v.data().set_mesh(VB, FB);
-//	v.data().show_lines = false;
-	
+
+	v.append_mesh();
+	v.data().set_mesh(VA, FA);
+	Eigen::MatrixXd F_color2(1, 3); // Single color for all faces
+    F_color2 << 1.0, 0.0, 0.0; 
+	v.data().set_colors(F_color2);
 	v.core().lighting_factor = 0;
 	v.launch();
 
@@ -470,156 +419,4 @@ int main(int argc, char* argv[])
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
-}
-
-void select_n_random_points(int n, const MatrixXd& V, MatrixXd& VA)
-{
-	// Seed the random number generator
-	srand(static_cast<unsigned>(time(0)));
-
-	// Get the total number of rows in VX
-	const int totalRows = V.rows();
-
-	// Ensure numPoints does not exceed the total number of rows
-	if (n > totalRows) {
-		n = totalRows;
-	}
-
-	// Randomly select numPoints row indices
-	VectorXi selectedRows(n); // Initialize and resize selectedRows
-	for (int i = 0; i < n; ++i) {
-		selectedRows(i) = rand() % totalRows;
-	}
-
-	// Create VA with selected rows
-	VA.resize(n, V.cols());
-	for (int i = 0; i < n; ++i) {
-		VA.row(i) = V.row(selectedRows(i));
-	}
-}
-
-void initialize_icp_correspondences(
-	const MatrixXd& VX,
-	const MatrixXd& VY, const MatrixXi& FY, const igl::AABB<MatrixXd, 3> Ytree,
-	MatrixXd& VA, MatrixXd& VB)
-{
-	int numPoints = 100;
-	const int totalRows = VX.rows();
-
-	if (numPoints > totalRows) {
-		numPoints = totalRows;
-	}
-
-	select_n_random_points(numPoints, VX, VA);
-
-	MatrixXd squared_distances;
-	MatrixXi closest_indexes;
-	MatrixXd closest_points;
-	Ytree.squared_distance(VY, FY, VA, squared_distances, closest_indexes, VB);
-	// Calculate standard deviation of squared distances
-	double squared_distances_sum = squared_distances.sum();
-	double mean = squared_distances_sum / squared_distances.size();
-
-	// Remove outliers (points with squared distance greater than 2 standard deviations)
-	MatrixXd newVA;
-	MatrixXd newVB;
-	int newVA_size = 0;
-	for (int i = 0; i < squared_distances.size(); i++) {
-		if (squared_distances(i) < mean ) {
-			newVA_size++;
-		}
-	}
-	newVA.resize(newVA_size, VA.cols());
-	newVB.resize(newVA_size, VB.cols());
-	int j = 0;
-	for (int i = 0; i < squared_distances.size(); i++) {
-		if (squared_distances(i) < mean ) {
-			newVA.row(j) = VA.row(i);
-			newVB.row(j) = VB.row(i);
-			j++;
-		}
-	}
-	VA = newVA;
-	VB = newVB;
-}
-
-void rigid_shape_matching(MatrixXd VA, MatrixXd VB, Matrix3d& R, RowVector3d& t)
-{
-	//assert(VA.rows() == VB.rows());
-	// Ricavo traslazione
-	// Calcolo baricentro
-	const RowVectorXd summerVector = RowVectorXd::Constant(VA.rows(), 1.0f / VA.rows());
-	RowVectorXd bariA = summerVector * VA;
-	RowVectorXd bariB = summerVector * VB;
-	// Rotazione: Matrice di somme di esterni tra punti iniziali e punti finali
-	Matrix3d outerProduct = (VA.rowwise() - bariA).eval().transpose() * (VB.rowwise() - bariB).eval();
-
-	Matrix3d U, D;
-	Vector3d S;
-	igl::svd3x3(outerProduct, U, S, D);
-	R = U * D.transpose();
-	//cout << "U*S*D\n" << U * S.asDiagonal() * D.transpose() << endl;
-
-	t = bariB - bariA * R;
-}
-
-void ransac3(const MatrixXd& VX, const MatrixXd& VY, const MatrixXi& FY, const igl::AABB<MatrixXd, 3> Ytree, Matrix3d& R, RowVector3d& t)
-{
-	int max_iterations = 100;
-	int accept_threshold = 100;
-	double delta = 0.01f;
-	int largest_consensus = 0;
-	Matrix3d best_R;
-	RowVector3d best_t;
-
-	for (int i = 0; i < max_iterations; i++)
-	{
-		// Select triplets
-		MatrixXd tri_x, tri_y;
-		select_n_random_points(3, VX, tri_x);
-		select_n_random_points(3, VY, tri_y);
-
-		// Try matching
-		rigid_shape_matching(tri_x, tri_y, R, t);
-
-		// Apply transformation
-		MatrixXd ransacdVX = VX * R;
-		ransacdVX = (ransacdVX.rowwise() + t).eval();
-
-		// Calculate number of valid points
-
-		MatrixXd squared_distances;
-		MatrixXi closest_indexes;
-		MatrixXd closest_points;
-		Ytree.squared_distance(VY, FY, ransacdVX, squared_distances, closest_indexes, closest_points);
-
-		//igl::point_mesh_squared_distance(ransacdVX, VY, FY, squared_distances, closest_indexes, closest_points);
-
-		int valid_candidates = (squared_distances.array() < delta).count();
-
-		// If over threshold, accept
-		if (valid_candidates > accept_threshold)
-			return;
-
-		// if best result, save
-		if (valid_candidates > largest_consensus)
-		{
-			best_R = R;
-			best_t = t;
-		}
-	}
-	R = best_R;
-	t = best_t;
-}
-
-bool contains_row(const Eigen::MatrixXi& matrix, const Eigen::RowVectorXi& row)
-{
-	for (int i = 0; i < matrix.rows(); ++i)
-	{
-		if (matrix.row(i) == row)
-		{
-			return true;
-		}
-	}
-	return false;
 }

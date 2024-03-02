@@ -61,32 +61,32 @@
     <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\mirto\Desktop\non-rigid-registration\build\Debug\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">example.dir\Debug\</IntDir>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">example</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NonRigidRegistration</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.exe</TargetExt>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\mirto\Desktop\non-rigid-registration\build\Release\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">example.dir\Release\</IntDir>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">example</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NonRigidRegistration</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.exe</TargetExt>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\mirto\Desktop\non-rigid-registration\build\MinSizeRel\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">example.dir\MinSizeRel\</IntDir>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">example</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">NonRigidRegistration</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.exe</TargetExt>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\mirto\Desktop\non-rigid-registration\build\RelWithDebInfo\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">example.dir\RelWithDebInfo\</IntDir>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">example</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">NonRigidRegistration</TargetName>
     <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.exe</TargetExt>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;$(ProjectDir)_deps\imgui-1.90.4;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;$(ProjectDir)_deps\imgui-1.90.4;$(ProjectDir)..\libs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/mirto/Desktop/non-rigid-registration/build/_deps/eigen-src" /bigobj</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -131,7 +131,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;$(ProjectDir)_deps\imgui-1.90.4;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;$(ProjectDir)_deps\imgui-1.90.4;$(ProjectDir)..\libs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/mirto/Desktop/non-rigid-registration/build/_deps/eigen-src" /bigobj</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <ExceptionHandling>Sync</ExceptionHandling>
@@ -176,7 +176,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;$(ProjectDir)_deps\imgui-1.90.4;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;$(ProjectDir)_deps\imgui-1.90.4;$(ProjectDir)..\libs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/mirto/Desktop/non-rigid-registration/build/_deps/eigen-src" /bigobj</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <ExceptionHandling>Sync</ExceptionHandling>
@@ -221,7 +221,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;$(ProjectDir)_deps\imgui-1.90.4;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\libigl-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glad-src\include;C:\Users\mirto\Desktop\non-rigid-registration\build\_deps\glfw-src\include;$(ProjectDir)_deps\imgui-1.90.4;$(ProjectDir)..\libs;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>%(AdditionalOptions) /external:I "C:/Users/mirto/Desktop/non-rigid-registration/build/_deps/eigen-src" /bigobj</AdditionalOptions>
       <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -367,6 +367,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="libs\graph.h" />
     <ClInclude Include="_deps\imgui-1.90.4\backends\imgui_impl_glfw.h" />
     <ClInclude Include="_deps\imgui-1.90.4\backends\imgui_impl_opengl3.h" />
     <ClInclude Include="_deps\imgui-1.90.4\imconfig.h" />
