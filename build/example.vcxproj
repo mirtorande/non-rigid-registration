@@ -368,6 +368,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="libs\graph.h" />
+    <ClInclude Include="libs\registration.h" />
     <ClInclude Include="_deps\imgui-1.90.4\backends\imgui_impl_glfw.h" />
     <ClInclude Include="_deps\imgui-1.90.4\backends\imgui_impl_opengl3.h" />
     <ClInclude Include="_deps\imgui-1.90.4\imconfig.h" />
