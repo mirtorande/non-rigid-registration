@@ -3,7 +3,7 @@
 #include <igl/opengl/glfw/Viewer.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <igl/AABB.h>
+//#include <igl/AABB.h>
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
@@ -14,18 +14,19 @@
 
 const std::string MODEL_FILE_PATH = "../resources/";
 
+typedef igl::opengl::glfw::Viewer Viewer;
+
 
 int main(int argc, char* argv[])
 {
 	srand(time(nullptr));
 
-	Eigen::MatrixXd VA, VB;
-	Eigen::MatrixXi FA, FB;
+	Matd VA, VB;
+	Mati FA, FB;
 	igl::readOBJ(MODEL_FILE_PATH + "rabbit.obj", VA, FA);
 	igl::readOBJ(MODEL_FILE_PATH + "rabbit.obj", VB, FB);
 
-	// Initialize viewer
-	igl::opengl::glfw::Viewer v;
+	Viewer v;
 	v.data().set_face_based(true);
 
 	igl::AABB<Eigen::MatrixXd, 3> treeB;
@@ -42,7 +43,7 @@ int main(int argc, char* argv[])
 	int lodDepth = 1;
 
 
-	Eigen::MatrixXd faceColors(FB.rows(), 3);
+	Matd faceColors(FB.rows(), 3);
 
 	for (int i = 0; i < FB.rows(); i++) {
 		faceColors.row(i) = ith_arbitrary_color(m_res.ith_parent(i, lodDepth));
@@ -50,7 +51,7 @@ int main(int argc, char* argv[])
 	v.data().set_colors(faceColors);
 
 
-	v.callback_init = [&](igl::opengl::glfw::Viewer& viewer)->bool
+	v.callback_init = [&](Viewer& viewer)->bool
 		{
 			// Initialize ImGui
 			ImGui::CreateContext();
@@ -59,7 +60,7 @@ int main(int argc, char* argv[])
 
 			return false;
 		};
-	v.callback_pre_draw = [&](igl::opengl::glfw::Viewer& v)->bool
+	v.callback_pre_draw = [&](Viewer& v)->bool
 		{
 			// Start ImGui frame
 			ImGui_ImplOpenGL3_NewFrame();
@@ -83,7 +84,7 @@ int main(int argc, char* argv[])
 			return false;
 		};
 
-	v.callback_post_draw = [&](igl::opengl::glfw::Viewer&)->bool
+	v.callback_post_draw = [&](Viewer&)->bool
 		{
 			// Render ImGui
 			ImGui::Render();
@@ -92,7 +93,7 @@ int main(int argc, char* argv[])
 			return false;
 		};
 	v.callback_key_pressed =
-		[&](igl::opengl::glfw::Viewer&, unsigned char key, int)->bool
+		[&](Viewer&, unsigned char key, int)->bool
 		{
 			switch (key)
 			{

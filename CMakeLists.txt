@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(non-rigid-registration)
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/libs)
 list(PREPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Libigl
