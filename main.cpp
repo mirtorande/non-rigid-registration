@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 			ImGui::NewFrame();
 
 			// Create ImGui window
-			ImGui::Begin("My ImGui Window");
+			ImGui::Begin("Non rigid registration");
 
 			ImGui::SliderInt("LOD Level", &lodDepth, 1, lodMaxDepth);
 

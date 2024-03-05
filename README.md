@@ -19,9 +19,20 @@ This should find and build the dependencies and create a `example` binary.
 
 From within the `build` directory just issue:
 
-    ./example
+    ./non-rigid-registration
 
 A glfw app should launch displaying a 3D cube.
+
+To run using and Nvidia GPU, create a bash script in the build folder with the following code:
+
+	#!/usr/bin/env bash
+	export __NV_PRIME_RENDER_OFFLOAD=1;
+	export __GLX_VENDOR_LIBRARY_NAME=nvidia;
+
+	$@;
+	DRI_PRIME=1 ./non-rigid-registration
+
+make it executable and the run it.
 
 ## Using other modules of libigl
 
