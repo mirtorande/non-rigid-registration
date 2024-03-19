@@ -33,6 +33,8 @@
 
 *.sqlite
 
+.cache
+
 build/*
 !build/example.vcxproj
 !build/example.sln
